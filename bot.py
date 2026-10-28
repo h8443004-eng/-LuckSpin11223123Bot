@@ -1,7 +1,7 @@
 import os
 import random
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Dice
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -18,11 +18,10 @@ logger = logging.getLogger(__name__)
 
 # Environment Variables
 TOKEN = os.getenv("BOT_TOKEN")
-# Optional: Require users to join a channel to get daily rewards / play
-REQUIRED_CHANNEL_ID = os.getenv("REQUIRED_CHANNEL_ID")  # e.g., "@yourchannel" or "-100123456789"
+REQUIRED_CHANNEL_ID = os.getenv("REQUIRED_CHANNEL_ID")  # e.g., "@yourchannel"
 CHANNEL_LINK = os.getenv("CHANNEL_LINK", "https://t.me/yourchannel")
 
-# In-memory database (For production, consider SQLite, PostgreSQL, or Redis)
+# In-memory database (For production, consider SQLite or PostgreSQL)
 user_balances = {}
 daily_claimed = {}
 
@@ -79,7 +78,6 @@ async def claim_daily_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     user_id = query.from_user.id
 
-    # Check Channel Subscription
     if REQUIRED_CHANNEL_ID and not await check_membership(context.bot, user_id):
         keyboard = [[InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)]]
         await query.message.reply_text(
@@ -88,7 +86,6 @@ async def claim_daily_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    # Check daily cooldown (simplified for session; key by date/day in real app)
     if daily_claimed.get(user_id):
         await query.message.reply_text("⏳ You have already claimed your daily bonus today! Come back tomorrow.")
         return
@@ -108,15 +105,12 @@ async def play_slots_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.message.reply_text("❌ You don't have enough coins to place this bet. Claim your daily bonus!")
         return
 
-    # Deduct bet
     update_balance(user_id, -bet_amount)
 
-    # Send Telegram native slot machine animation
+    # Send Telegram native slot machine dice animation
     msg = await query.message.reply_dice(emoji="🎰")
     val = msg.dice.value
 
-    # Telegram Slot values: 1 (BAR BAR BAR), 64 (7 7 7), etc.
-    # Jackpot combinations: 1 (Bar), 22 (Grapes), 43 (Lemon), 64 (777)
     if val == 64:  # Triple 777 Jackpot
         win = 100
         update_balance(user_id, win)
